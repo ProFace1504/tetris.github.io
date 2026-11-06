@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tetris stop motion</title>
+<link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#050507;overflow:hidden;-webkit-user-select:none;user-select:none}
+body{font-family:'VT323',"Courier New",monospace;color:#e6e6e6}
+#bezel{position:fixed;inset:2.5vh 3vw;border-radius:3vmin;background:linear-gradient(160deg,#eeeee9,#bdbdb6 60%,#9d9d96);padding:2.5vmin;box-shadow:inset 0 0 0 .4vmin #8a8a84,0 0 4vmin rgba(0,0,0,.6)}
+#screen{position:relative;width:100%;height:100%;border-radius:2.5vmin;background:#000;overflow:hidden;display:grid;grid-template-columns:1fr auto 1fr;grid-template-rows:1fr auto;align-items:center;box-shadow:inset 0 0 6vmin #000}
+#screen::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:3;background:repeating-linear-gradient(to bottom,rgba(255,255,255,.035) 0 1px,transparent 1px 3px),radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.6) 100%)}
+#hud{grid-column:1;grid-row:1;justify-self:end;padding-right:4vmin;font-size:4.4vh;line-height:1.08;text-shadow:0 0 .6vmin rgba(230,230,230,.45);white-space:nowrap}
+#hud .gap{height:2.6vh}
+#hud .help{margin-top:3vh;padding-left:4vmin;font-size:3.9vh}
+#nb{display:grid;grid-template-columns:repeat(4,2.4vh);grid-template-rows:repeat(3,2.4vh);gap:.3vh;margin:1vh 0 0 8vmin}
+#nb .c{border:0;background-image:none}
+#board{grid-column:2;grid-row:1;position:relative;height:74vh;aspect-ratio:10/12;display:grid;grid-template-columns:repeat(10,1fr);grid-template-rows:repeat(12,1fr);margin:0 2vmin}
+#board::before,#board::after{content:"";position:absolute;top:0;bottom:0;width:2.2vmin;background:repeating-linear-gradient(to bottom,#5a5ff0 0 .8vmin,transparent .8vmin 1.8vmin)}
+#board::before{left:-2.6vmin}
+#board::after{right:-2.6vmin}
+.c{border-bottom:1px solid #1a24b8;background-image:radial-gradient(circle,#3440ff 0 .22vmin,transparent .3vmin);background-position:center;background-repeat:no-repeat}
+.ac{position:absolute;width:10%;height:8.3333%}
+.T,.I,.O,.L,.G,.W{background-image:none;border-bottom:none;box-shadow:inset 0 0 0 .3vmin rgba(0,0,0,.35),inset 0 .35vmin 0 rgba(255,255,255,.35)}
+.T{background-color:#d848d8}
+.I{background-color:#40e8e8}
+.O{background-color:#f0e040}
+.L{background-color:#f08020}
+.G{background-color:#40e040}
+.W{background-color:#fff;box-shadow:0 0 1.5vmin #fff}
+#stats{grid-column:3;grid-row:1;justify-self:start;padding-left:4vmin;font-size:4.4vh;line-height:1.1}
+#stats h2{font-weight:normal;letter-spacing:.3vmin;text-align:center;margin-bottom:3vh;padding-right:4vmin;text-shadow:0 0 .6vmin rgba(230,230,230,.45)}
+.stat{display:flex;align-items:center;gap:1.5vmin;margin-bottom:1.8vh;text-shadow:0 0 .6vmin rgba(230,230,230,.45)}
+.stat i{display:inline-block;width:5vmin;height:2.4vmin}
+.stat span{min-width:4vmin;text-align:right}
+#sum{border-top:2px solid #ddd;margin-top:1.5vh;padding-top:1vh;text-align:right}
+#caption{grid-column:1/-1;grid-row:2;text-align:center;color:#e8201c;font-size:5vh;padding-top:1.5vh;text-shadow:0 0 1vmin rgba(232,32,28,.7)}
+#hot{position:fixed;top:0;left:0;width:72px;height:72px;z-index:20;background:transparent;border:0}
+#panel{display:none;position:fixed;left:0;right:0;bottom:0;padding:14px 16px calc(14px + env(safe-area-inset-bottom,0px));background:rgba(10,10,18,.94);border-top:1px solid #333;z-index:15;font-family:system-ui,sans-serif}
+body.guion #panel{display:block}
+body.guion #board{height:56vh}
+#info{font-size:13px;color:#999;margin-bottom:6px}
+#note{font-size:17px;line-height:1.4;margin-bottom:12px;min-height:48px;color:#eee}
+.row{display:flex;gap:10px}
+.row button{flex:1;min-height:44px;border:0;border-radius:8px;background:#2a2a3a;color:#eee;font-size:15px}
+.row button:disabled{opacity:.35}
+.row button.primary{background:#6d28d9}
+#overlay{position:absolute;inset:0;z-index:4;background:#000;display:none;align-items:center;justify-content:center}
+.logo{display:flex;gap:2vmin;font-size:16vh;line-height:1}
+.logo span{display:inline-block}
+.logo .glow{text-shadow:0 0 4vmin #fff,0 0 1vmin #fff}
+.menu{font-size:7vh;line-height:1.7;text-align:center}
+.menu .sel{color:#f0e040}
+.menu .press{background:#fff;color:#000}
+#board .off{visibility:hidden}
+.win{border:.6vmin solid #f0e040;background:#000;padding:4vh 6vmin;text-align:center;box-shadow:0 0 3vmin rgba(240,224,64,.5)}
+.wt{font-size:14vh;line-height:1;color:#f0e040}
+.ws{font-size:5vh;margin-top:2vh}
+.win.glow{border-color:#fff;box-shadow:0 0 4vmin #fff}
+.win.glow .wt{color:#fff}
+</style>
+</head>
+<body>
+<div id="bezel">
+  <div id="screen">
+    <div id="hud">
+      <div>Your level: 1</div>
+      <div>Full lines: <span id="lines">0</span></div>
+      <div class="gap"></div>
+      <div>SCORE &nbsp;&nbsp;<span id="score" style="color:#f0a040">0</span></div>
+      <div class="help">
+        <div>HELP</div>
+        <div style="margin-top:1vh">7:Left<br>9:Right<br>8:Rotate<br>1:Draw next<br>6:Speed up<br>4:Drop<br>SPACE:Drop</div>
+      </div>
+      <div style="margin-top:4vh;padding-left:4vmin">Next:</div>
+      <div id="nb"></div>
+    </div>
+    <div id="board"></div>
+    <div id="stats">
+      <h2>STATISTICS</h2>
+      <div class="stat"><i style="background:#d848d8"></i><span id="sT">0</span></div>
+      <div class="stat"><i style="background:#40e8e8"></i><span id="sI">0</span></div>
+      <div class="stat"><i style="background:#f0e040"></i><span id="sO">0</span></div>
+      <div class="stat"><i style="background:#f08020"></i><span id="sL">0</span></div>
+      <div id="sum">Σ : <span id="sSum">0</span></div>
+    </div>
+    <div id="caption">Play TETRIS !</div>
+    <div id="overlay"></div>
+  </div>
+</div>
+<button id="hot" aria-label="Mostrar u ocultar guion"></button>
+<div id="panel">
+  <div id="info"></div>
+  <div id="note"></div>
+  <div class="row">
+    <button id="prev">Anterior</button>
+    <button id="next" class="primary">Siguiente</button>
+    <button id="hide">Ocultar guion</button>
+  </div>
+  <div class="row" style="margin-top:10px">
+    <input id="jump" type="number" min="1" max="900" placeholder="Ir al cuadro N" style="flex:1;min-height:44px;border:0;border-radius:8px;padding:0 10px;background:#15151f;color:#eee;font-size:16px">
+    <button id="go">Ir</button>
+  </div>
+</div>
+
+<script>
+const W = 10, H = 12, MAXF = 900;
+const SHAPES = {
+  T: [[0,0],[0,1],[0,2],[1,1]],
+  I: [[0,0],[0,1],[0,2],[0,3]],
+  O: [[0,0],[0,1],[1,0],[1,1]],
+  L: [[0,0],[1,0],[2,0],[2,1]]
+};
+const TYPES = ['T','I','O','L'];
+
+function norm(s){
+  const mr = Math.min(...s.map(p => p[0])), mc = Math.min(...s.map(p => p[1]));
+  return s.map(([r,c]) => [r-mr, c-mc]);
+}
+const ROTS = {};
+for(const k of TYPES){
+  ROTS[k] = [SHAPES[k]];
+  for(let i=1;i<4;i++) ROTS[k].push(norm(ROTS[k][i-1].map(([r,c]) => [c,-r])));
+}
+
+// Semilla fija: la partida sale igual cada vez que se abre la app
+let seed = 7;
+function rnd(){ seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; }
+let bag = [];
+function nextType(){
+  if(!bag.length) bag = TYPES.slice().sort(() => rnd() - 0.5);
+  return bag.pop();
+}
+const seq = [];
+function S(i){ while(seq.length <= i) seq.push(nextType()); return seq[i]; }
+
+function newGrid(){ return Array.from({length:H}, () => Array(W).fill('.')); }
+function fits(g, cells, r, c){
+  return cells.every(([dr,dc]) => {
+    const y = r+dr, x = c+dc;
+    return x >= 0 && x < W && y < H && (y < 0 || g[y][x] === '.');
+  });
+}
+function planPath(g, type, targetRot, targetX){
+  const steps = [];
+  let rot = 0, c = 3, r = 0;
+  if(!fits(g, ROTS[type][0], 0, c)) return null;
+  while(true){
+    const d = c < targetX ? 1 : c > targetX ? -1 : 0;
+    if(rot !== targetRot && fits(g, ROTS[type][(rot+1)%4], r, c)){
+      rot = (rot+1) % 4; steps.push({k:'rot'});
+    } else if(d !== 0 && fits(g, ROTS[type][rot], r, c+d)){
+      c += d; steps.push({k:'mov', c});
+    }
+    if(fits(g, ROTS[type][rot], r+1, c)){
+      r++; steps.push({k:'drop', r});
+    } else {
+      if(rot === targetRot && c === targetX) break;
+      return null;
+    }
+  }
+  return {steps, rot, final: ROTS[type][rot].map(([dr,dc]) => [r+dr, c+dc])};
+}
+function evalPlace(g, cells, type){
+  const h = g.map(row => row.slice());
+  cells.forEach(([y,x]) => h[y][x] = type);
+  const keep = h.filter(row => row.some(v => v === '.'));
+  const lines = H - keep.length;
+  while(keep.length < H) keep.unshift(Array(W).fill('.'));
+  let agg = 0, holes = 0, bump = 0, prev = null;
+  for(let x=0;x<W;x++){
+    let top = -1;
+    for(let y=0;y<H;y++) if(keep[y][x] !== '.'){ top = y; break; }
+    const ht = top < 0 ? 0 : H - top;
+    agg += ht;
+    if(prev !== null) bump += Math.abs(ht - prev);
+    prev = ht;
+    if(top >= 0) for(let y=top;y<H;y++) if(keep[y][x] === '.') holes++;
+  }
+  return -0.51*agg + 0.76*lines - 0.36*holes - 0.18*bump;
+}
+function bestPlan(g, type){
+  let best = null;
+  for(let rot=0;rot<4;rot++) for(let x=-2;x<W;x++){
+    const p = planPath(g, type, rot, x);
+    if(!p) continue;
+    const sc = evalPlace(g, p.final, type);
+    if(!best || sc > best.sc) best = {sc, ...p};
+  }
+  return best;
+}
+
+// Generación de los cuadros
+const FRAMES = [];
+let grid = newGrid(), score = 0, lines = 0, pi = 0;
+const stats = [0,0,0,0];
+
+function pieceAt(type, rot, r, c, dy, dx){
+  return {t:type, cells: ROTS[type][rot].map(([y,x]) => [y+r, x+c]), dy, dx};
+}
+function snap(note, a, rows){
+  FRAMES.push({
+    rows: (rows || grid).map(row => row.join('')),
+    a: a || null, note, s: score, l: lines, n: S(pi+1), st: stats.slice(), m: 'game', hud: true, rev: H
+  });
+}
+
+const LET = 'TETRIS';
+const EMPTY = Array(H).fill('.'.repeat(W));
+function vfr(o){ FRAMES.push(Object.assign({rows: EMPTY, a: null, s: 0, l: 0, n: 'T', st: [0,0,0,0], m: 'game', hud: true, rev: H, note: ''}, o)); }
+function logoHTML(f){
+  const cols = ['#d848d8','#40e8e8','#f0e040','#40e040','#f08020','#e8201c'];
+  let h = '<div class="logo">';
+  for(let i=0;i<f.lt;i++){
+    const off = (i === f.lt-1 && f.dy < 1) ? 'transform:translateY(' + (-(1-f.dy)*60) + 'vh)' : '';
+    h += '<span class="' + (f.g ? 'glow' : '') + '" style="color:' + cols[i] + ';' + off + '">' + LET[i] + '</span>';
+  }
+  return h + '</div>';
+}
+function menuHTML(f){
+  const opts = ['JUGAR','OPCIONES','SALIR'];
+  return '<div class="menu">' + opts.map((o,i) => {
+    const cls = i === f.sel ? (f.p ? 'press' : 'sel') : '';
+    return '<div class="' + cls + '">' + (i === f.sel ? '▶ ' : '   ') + o + '</div>';
+  }).join('') + '</div>';
+}
+for(let i=1;i<=6;i++) for(let k=1;k<=4;k++)
+  vfr({m:'logo', lt:i, dy:k/4, note:'Cae la letra ' + LET[i-1] + ' (' + i + ' de 6). Mano fuera del encuadre.'});
+for(let k=0;k<8;k++) vfr({m:'logo', lt:6, dy:1, g:k%2===0, note:'El logo parpadea. Mano fuera del encuadre.'});
+for(let k=0;k<24;k++) vfr({m:'logo', lt:6, dy:1, note:'Logo fijo. Mano fuera del encuadre.'});
+for(let k=0;k<20;k++) vfr({m:'menu', sel:0, p:false, note:'Menú principal. Mano fuera del encuadre.'});
+for(let k=1;k<=3;k++) vfr({m:'menu', sel:0, p:k===1, note:'Mano en la tablet: toca JUGAR (' + k + ' de 3).'});
+for(let r=1;r<=H;r++) vfr({m:'reveal', rev:r, hud:false, note:'Aparece el tablero, fila ' + r + ' de ' + H + '. Mano fuera del encuadre.'});
+for(let k=1;k<=2;k++) vfr({m:'reveal', rev:H, hud:true, note:'Aparecen el puntaje y las estadísticas (' + k + ' de 2).'});
+let won = false;
+function winHTML(f){
+  return '<div class="win' + (f.g ? ' glow' : '') + '"><div class="wt">GANASTE</div><div class="ws">' + f.s + ' puntos</div></div>';
+}
+while(FRAMES.length < MAXF && !won){
+  const type = S(pi);
+  const plan = bestPlan(grid, type);
+  if(!plan){
+    grid = newGrid();
+    snap("La pila llega arriba: se limpia el tablero y la partida sigue. Mano fuera del encuadre.");
+    pi++; continue;
+  }
+  stats[TYPES.indexOf(type)]++;
+  snap(`Aparece una pieza ${type} arriba. Mano fuera del encuadre.`, pieceAt(type, 0, 0, 3, 0, 0));
+
+  let rot = 0, c = 3, r = 0, rots = 0, movs = 0;
+  for(const st of plan.steps){
+    if(st.k === 'rot'){
+      rot++; rots++;
+      for(let k=1;k<=2;k++)
+        snap(`Ahora la mano toca la pantalla: rota la pieza (${k}/2).`, pieceAt(type, rot, r, c, 0, 0));
+    } else if(st.k === 'mov'){
+      const d = st.c - c; movs++;
+      for(let k=1;k<=2;k++)
+        snap(`Mano en la tablet: mueve la pieza a la ${d>0?'derecha':'izquierda'} (${k}/2).`, pieceAt(type, rot, r, c, 0, d*k/2));
+      c = st.c;
+    } else if(st.k === 'drop'){
+      for(let k=1;k<=2;k++)
+        snap(`La pieza cae. Mano fuera del encuadre (${k}/2).`, pieceAt(type, rot, r, c, k/2, 0));
+      r = st.r;
+    }
+  }
+
+  plan.final.forEach(([y,x]) => grid[y][x] = type);
+  snap("La pieza encaja. Mano fuera del encuadre.");
+
+  const full = [];
+  grid.forEach((row,y) => { if(row.every(v => v !== '.')) full.push(y); });
+  if(full.length){
+    const flash = grid.map((row,y) => full.includes(y) ? Array(W).fill('W') : row);
+    snap("Se completa la línea. Cuadro en blanco.", null, flash);
+    grid = grid.filter((_,y) => !full.includes(y));
+    while(grid.length < H) grid.unshift(Array(W).fill('.'));
+    lines += full.length;
+    score += 100 * full.length;
+    snap("La línea se borra y todo baja. Mano fuera del encuadre.");
+    if(score >= 1000 && !won){
+      won = true;
+      for(let k=0;k<30;k++) vfr({m:'win', rows: grid.map(row => row.join('')), s: score, l: lines, n: S(pi+1), st: stats.slice(), g: k%2===0, note: k===0 ? 'Llegaste a 1000 puntos: aparece la ventana GANASTE. Mano fuera del encuadre.' : 'Ventana GANASTE. Mano fuera del encuadre.'});
+    }
+  }
+  pi++;
+}
+if(FRAMES.length > MAXF) FRAMES.length = MAXF;
+
+// Reproducción
+let idx = 0;
+const board = document.getElementById('board');
+const cells = [];
+for(let i=0;i<W*H;i++){
+  const d = document.createElement('div');
+  d.className = 'c';
+  board.appendChild(d);
+  cells.push(d);
+}
+const nb = document.getElementById('nb');
+for(let i=0;i<12;i++){ nb.appendChild(document.createElement('div')).className = 'c'; }
+
+function render(){
+  const f = FRAMES[idx];
+  const menu = f.m === 'logo' || f.m === 'menu';
+  board.style.visibility = menu ? 'hidden' : 'visible';
+  const ov = document.getElementById('overlay');
+  ov.style.display = (menu || f.m === 'win') ? 'flex' : 'none';
+  ov.style.background = f.m === 'win' ? 'rgba(0,0,0,.55)' : '#000';
+  ov.innerHTML = f.m === 'logo' ? logoHTML(f) : f.m === 'menu' ? menuHTML(f) : f.m === 'win' ? winHTML(f) : '';
+  const vis = f.hud === false ? 'hidden' : 'visible';
+  document.getElementById('hud').style.visibility = vis;
+  document.getElementById('stats').style.visibility = vis;
+  for(let r=0;r<H;r++) for(let c=0;c<W;c++){
+    const ch = f.rows[r][c];
+    cells[r*W+c].className = 'c' + (r < H - f.rev ? ' off' : '') + (ch !== '.' ? ' ' + ch : '');
+  }
+  board.querySelectorAll('.ac').forEach(e => e.remove());
+  if(f.a) f.a.cells.forEach(([y,x]) => {
+    const d = document.createElement('div');
+    d.className = 'ac ' + f.a.t;
+    d.style.left = ((x + f.a.dx) * 100 / W) + '%';
+    d.style.top = ((y + f.a.dy) * 100 / H) + '%';
+    board.appendChild(d);
+  });
+  const mini = Array(12).fill('.');
+  ROTS[f.n][0].forEach(([y,x]) => mini[y*4+x] = f.n);
+  mini.forEach((ch,i) => nb.children[i].className = 'c' + (ch !== '.' ? ' ' + ch : ''));
+  document.getElementById('lines').textContent = f.l;
+  document.getElementById('score').textContent = f.s;
+  document.getElementById('sT').textContent = f.st[0];
+  document.getElementById('sI').textContent = f.st[1];
+  document.getElementById('sO').textContent = f.st[2];
+  document.getElementById('sL').textContent = f.st[3];
+  document.getElementById('sSum').textContent = f.st.reduce((a,b) => a+b, 0);
+  document.getElementById('info').textContent = `Cuadro ${idx+1} de ${FRAMES.length}`;
+  document.getElementById('note').textContent = fixNote(f.note);
+  document.getElementById('prev').disabled = idx === 0;
+  document.getElementById('next').disabled = idx === FRAMES.length-1;
+}
+function fixNote(s){
+  return s
+    .replace(/Mano fuera del encuadre/g, 'El Lego queda quieto, sin tocar la pantalla')
+    .replace(/Mano en la tablet/g, 'El Lego en la tablet')
+    .replace(/la mano/g, 'el Lego');
+}
+function go(d){
+  const n = Math.min(FRAMES.length-1, Math.max(0, idx+d));
+  if(n !== idx){ idx = n; render(); }
+}
+function togglePanel(){ document.body.classList.toggle('guion'); }
+
+document.getElementById('next').addEventListener('click', () => go(1));
+document.getElementById('prev').addEventListener('click', () => go(-1));
+document.getElementById('hide').addEventListener('click', togglePanel);
+document.getElementById('hot').addEventListener('click', togglePanel);
+function jump(){
+  const n = parseInt(document.getElementById('jump').value, 10);
+  if(n >= 1 && n <= FRAMES.length){ idx = n-1; render(); }
+}
+document.getElementById('go').addEventListener('click', jump);
+document.getElementById('jump').addEventListener('keydown', e => { if(e.key === 'Enter'){ jump(); e.target.blur(); } });
+document.addEventListener('keydown', e => {
+  if(e.target.tagName === 'INPUT') return;
+  if(e.key === 'ArrowRight') go(1);
+  else if(e.key === 'ArrowLeft') go(-1);
+  else if(e.key === 'g' || e.key === 'G') togglePanel();
+});
+render();
+</script>
+</body>
+</html>
